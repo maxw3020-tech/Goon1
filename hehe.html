@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Media Gallery</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f4f4f4; }
+  header { padding: 10px; background: #333; color: white; text-align: center; }
+  input { margin: 10px; }
+  #gallery { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; }
+  .media-item { width: 150px; height: 150px; object-fit: cover; cursor: pointer; position: relative; }
+  .fullscreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+  .fullscreen img, .fullscreen video { max-width: 90%; max-height: 90%; }
+  .exit-btn { position: absolute; top: 20px; right: 20px; background: #fff; border: none; font-size: 18px; padding: 5px 10px; cursor: pointer; }
+  .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); font-size: 30px; color: white; background: none; border: none; cursor: pointer; }
+  .prev { left: 10px; }
+  .next { right: 10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Media Gallery</h1>
+  <input type="file" id="fileInput" multiple accept="image/*,video/*">
+</header>
+
+<div id="gallery"></div>
+
+<div id="fullscreenView" class="fullscreen" style="display:none;">
+  <button class="exit-btn" onclick="closeFullscreen()">Exit</button>
+  <button class="nav-btn prev" onclick="prevMedia()">&#10094;</button>
+  <button class="nav-btn next" onclick="nextMedia()">&#10095;</button>
+  <div id="mediaContainer"></div>
+</div>
+
+<script>
+let mediaList = JSON.parse(localStorage.getItem('mediaGallery') || '[]');
+let currentIndex = 0;
+let longPressTimer;
+
+function saveGallery() { localStorage.setItem('mediaGallery', JSON.stringify(mediaList)); }
+
+function displayGallery() {
+  const gallery = document.getElementById('gallery');
+  gallery.innerHTML = '';
+  mediaList.forEach((media, index) => {
+    const element = media.type.startsWith('image') ? document.createElement('img') : document.createElement('video');
+    element.src = media.data;
+    if(media.type.startsWith('video')) element.controls = true;
+    element.className = 'media-item';
+    element.addEventListener('click', () => openFullscreen(index));
+    element.addEventListener('touchstart', () => {
+      longPressTimer = setTimeout(() => { if(confirm('Delete this item?')) deleteMedia(index); }, 800);
+    });
+    element.addEventListener('touchend', () => clearTimeout(longPressTimer));
+    gallery.appendChild(element);
+  });
+}
+
+function openFullscreen(index) {
+  currentIndex = index;
+  const view = document.getElementById('fullscreenView');
+  const container = document.getElementById('mediaContainer');
+  container.innerHTML = '';
+  const media = mediaList[currentIndex];
+  const element = media.type.startsWith('image') ? document.createElement('img') : document.createElement('video');
+  element.src = media.data;
+  if(media.type.startsWith('video')) element.controls = true;
+  container.appendChild(element);
+  view.style.display = 'flex';
+}
+
+function closeFullscreen() { document.getElementById('fullscreenView').style.display = 'none'; }
+
+function nextMedia() { currentIndex = (currentIndex + 1) % mediaList.length; openFullscreen(currentIndex); }
+function prevMedia() { currentIndex = (currentIndex - 1 + mediaList.length) % mediaList.length; openFullscreen(currentIndex); }
+
+function deleteMedia(index) { mediaList.splice(index, 1); saveGallery(); displayGallery(); closeFullscreen(); }
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  Array.from(e.target.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      mediaList.push({data: reader.result, type: file.type});
+      saveGallery();
+      displayGallery();
+    }
+    reader.readAsDataURL(file);
+  });
+});
+
+displayGallery();
+</script>
+
+</body>
+</html>
